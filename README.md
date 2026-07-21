@@ -40,7 +40,7 @@ The model was trained on a dataset of over 114,000 Spotify tracks across 114 dif
 > **Note on R² Score**: An R² of ~0.38 is considered highly realistic and robust for this specific domain. Predicting human musical taste based *solely* on raw audio numbers (without artist hype or marketing budgets) is notoriously difficult.
 ## 🛠️ Architecture & Workflow
 
-1.  **`notebooks/Phan_Tich_EDA.ipynb`**: The Research Phase. Contains deep Exploratory Data Analysis (EDA) with professional statistical charts, correlation matrices, and density plots to understand the data before modeling. Included with detailed professional insights in Vietnamese.
+1.  **`notebooks/spotify_eda_analysis.ipynb`**: The Research Phase. Contains deep Exploratory Data Analysis (EDA) with professional statistical charts, correlation matrices, and density plots to understand the data before modeling. Included with detailed professional insights in Vietnamese.
 2.  **`train_model.py`**: The Production Training script. Cleans the data, runs the benchmarking suite, constructs the pipeline, and saves the best model.
 3.  **`api.py`**: The FastAPI application serving predictions via `POST /predict` and dynamically providing metadata via `GET /metadata`.
 4.  **`frontend/`**: The Spotify-Clone UI utilizing raw HTML/CSS/JS for zero-dependency high performance.
