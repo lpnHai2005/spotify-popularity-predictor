@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Popularity Predictor</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_White.png">
+</head>
+<body>
+    <div class="background-glow"></div>
+    <div class="container">
+        <!-- Sidebar / Header Area -->
+        <aside class="sidebar">
+            <img src="https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_White.png" alt="Spotify Logo" class="logo">
+            <h1>Track Popularity Predictor</h1>
+            <p class="subtitle">Powered by Machine Learning (Random Forest)</p>
+            <div class="info-card">
+                <p>Adjust the track parameters on the right to predict its potential popularity score.</p>
+            </div>
+            
+            <div class="result-container" id="result-container">
+                <h2>Prediction Result</h2>
+                <div class="score-ring">
+                    <svg viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" class="bg-circle"></circle>
+                        <circle cx="50" cy="50" r="45" class="progress-circle" id="progress-circle"></circle>
+                    </svg>
+                    <div class="score-text">
+                        <span id="score-value">0</span><span class="max-score">/100</span>
+                    </div>
+                </div>
+                <p id="prediction-verdict" class="verdict">Ready to predict</p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <form id="prediction-form" class="prediction-form">
+                
+                <div class="form-section">
+                    <h3>Basic Features</h3>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label for="track_genre">Genre</label>
+                            <select id="track_genre" name="track_genre" required>
+                                <option value="" disabled selected>Loading genres...</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="duration_min">Duration (Mins) <span class="val-display" id="val_duration_min">3.5</span></label>
+                            <input type="range" id="duration_min" name="duration_min" min="0.5" max="20" step="0.1" value="3.5">
+                        </div>
+                    </div>
+                    
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label for="explicit">Explicit Content</label>
+                            <select id="explicit" name="explicit">
+                                <option value="0">Clean (No)</option>
+                                <option value="1">Explicit (Yes)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="tempo">Tempo (BPM) <span class="val-display" id="val_tempo">120.0</span></label>
+                            <input type="range" id="tempo" name="tempo" min="0" max="250" step="1" value="120">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Vibe & Mood</h3>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label for="danceability">Danceability <span class="val-display" id="val_danceability">0.50</span></label>
+                            <input type="range" id="danceability" name="danceability" min="0" max="1" step="0.01" value="0.5">
+                        </div>
+                        <div class="input-group">
+                            <label for="energy">Energy <span class="val-display" id="val_energy">0.50</span></label>
+                            <input type="range" id="energy" name="energy" min="0" max="1" step="0.01" value="0.5">
+                        </div>
+                        <div class="input-group">
+                            <label for="valence">Valence (Happiness) <span class="val-display" id="val_valence">0.50</span></label>
+                            <input type="range" id="valence" name="valence" min="0" max="1" step="0.01" value="0.5">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Acoustic Properties</h3>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label for="loudness">Loudness (dB) <span class="val-display" id="val_loudness">-5.0</span></label>
+                            <input type="range" id="loudness" name="loudness" min="-60" max="0" step="0.1" value="-5.0">
+                        </div>
+                        <div class="input-group">
+                            <label for="acousticness">Acousticness <span class="val-display" id="val_acousticness">0.20</span></label>
+                            <input type="range" id="acousticness" name="acousticness" min="0" max="1" step="0.01" value="0.2">
+                        </div>
+                        <div class="input-group">
+                            <label for="instrumentalness">Instrumentalness <span class="val-display" id="val_instrumentalness">0.00</span></label>
+                            <input type="range" id="instrumentalness" name="instrumentalness" min="0" max="1" step="0.01" value="0.0">
+                        </div>
+                        <div class="input-group">
+                            <label for="liveness">Liveness <span class="val-display" id="val_liveness">0.10</span></label>
+                            <input type="range" id="liveness" name="liveness" min="0" max="1" step="0.01" value="0.1">
+                        </div>
+                        <div class="input-group">
+                            <label for="speechiness">Speechiness <span class="val-display" id="val_speechiness">0.05</span></label>
+                            <input type="range" id="speechiness" name="speechiness" min="0" max="1" step="0.01" value="0.05">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Musical Theory</h3>
+                    <div class="grid-3">
+                        <div class="input-group">
+                            <label for="key">Key <span class="val-display" id="val_key">5</span></label>
+                            <input type="range" id="key" name="key" min="0" max="11" step="1" value="5">
+                        </div>
+                        <div class="input-group">
+                            <label for="mode">Mode</label>
+                            <select id="mode" name="mode">
+                                <option value="1">Major</option>
+                                <option value="0">Minor</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="time_signature">Time Signature <span class="val-display" id="val_time_signature">4</span></label>
+                            <input type="range" id="time_signature" name="time_signature" min="1" max="5" step="1" value="4">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-bar">
+                    <button type="submit" class="btn-predict" id="btn-predict">
+                        <span class="btn-text">Predict Popularity</span>
+                        <div class="loader" id="loader" style="display: none;"></div>
+                    </button>
+                </div>
+            </form>
+        </main>
+    </div>
+    <script src="static/script.js"></script>
+</body>
+</html>
