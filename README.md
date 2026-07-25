@@ -30,12 +30,12 @@ The model was trained on a dataset of over 114,000 Spotify tracks across 114 dif
 
 | Algorithm | RMSE | MAE | R² |
 | :--- | :--- | :--- | :--- |
-| Ridge Regression | 16.856 | 12.017 | 0.3198 |
-| Decision Tree | 16.993 | 11.668 | 0.3086 |
-| AdaBoost | 17.694 | 13.878 | 0.2504 |
-| **Random Forest** | **16.009** | **11.262** | **0.3864** |
-| XGBoost | 16.080 | 11.401 | 0.3810 |
-| LightGBM | 16.170 | 11.489 | 0.3740 |
+| Ridge Regression | 16.853 | 12.031 | 0.3200 |
+| Decision Tree | 17.086 | 11.713 | 0.3011 |
+| AdaBoost | 17.388 | 13.387 | 0.2762 |
+| **Random Forest** | **15.997** | **11.261** | **0.3873** |
+| XGBoost | 16.058 | 11.392 | 0.3826 |
+| LightGBM | 16.156 | 11.467 | 0.3751 |
 
 > **Note on R² Score**: An R² of ~0.38 is considered highly realistic and robust for this specific domain. Predicting human musical taste based *solely* on raw audio numbers (without artist hype or marketing budgets) is notoriously difficult.
 ## 🛠️ Architecture & Workflow
