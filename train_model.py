@@ -27,13 +27,25 @@ df.reset_index(drop=True, inplace=True)
 df['duration_min'] = df['duration_ms'] / 60_000
 df['explicit'] = df['explicit'].astype(int)
 
+# Feature Engineering
+# Key as cyclical feature (musical keys wrap around 0-11)
+df['key_sin'] = np.sin(2 * np.pi * df['key'] / 12)
+df['key_cos'] = np.cos(2 * np.pi * df['key'] / 12)
+
+# Interaction features
+df['dance_x_energy']    = df['danceability'] * df['energy']
+df['valence_x_energy']  = df['valence']      * df['energy']
+df['loud_x_energy']     = df['loudness']     * df['energy']
+
 # 2. Feature Selection
 categorical_features = ['track_genre']
 numeric_features = [
-    'danceability', 'energy', 'key', 'loudness', 'mode',
+    'danceability', 'energy', 'loudness', 'mode',
     'speechiness', 'acousticness', 'instrumentalness',
     'liveness', 'valence', 'tempo', 'time_signature',
-    'explicit', 'duration_min'
+    'explicit', 'duration_min',
+    'key_sin', 'key_cos', 
+    'dance_x_energy', 'valence_x_energy', 'loud_x_energy'
 ]
 
 X = df[categorical_features + numeric_features]
