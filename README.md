@@ -55,7 +55,7 @@ Make sure you have Python 3.9+ installed.
 pip install -r requirements.txt
 ```
 
-> **Dataset**: `dataset.csv` from [Kaggle — Spotify Tracks Dataset](https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset).
+> **Dataset**: `dataset.csv` from [Kaggle — Spotify Tracks Dataset](https://www.kaggle.com/datasets/yashdev01/spotify-tracks-dataset).
 
 > **Note**: `dataset.csv` (~20 MB) and `pipeline.pkl` (~24 MB) are excluded from version control via `.gitignore`.
 
