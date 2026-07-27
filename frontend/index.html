@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spotify Popularity Predictor</title>
+    <meta name="description" content="Predict how popular a Spotify track will be based purely on its audio features — danceability, energy, tempo, key, and more. Powered by an automated ML benchmarking pipeline.">
+    <meta property="og:title" content="Spotify Track Popularity Predictor">
+    <meta property="og:description" content="Enter a track's audio features and get an instant popularity score prediction from a trained ML model.">
+    <meta property="og:type" content="website">
+    <title>Spotify Track Popularity Predictor</title>
     <link rel="stylesheet" href="static/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_White.png">
@@ -15,7 +19,7 @@
         <aside class="sidebar">
             <img src="https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_White.png" alt="Spotify Logo" class="logo">
             <h1>Track Popularity Predictor</h1>
-            <p class="subtitle">Powered by Machine Learning (Random Forest)</p>
+            <p class="subtitle" id="model-subtitle">Powered by Machine Learning</p>
             <div class="info-card">
                 <p>Adjust the track parameters on the right to predict its potential popularity score.</p>
             </div>

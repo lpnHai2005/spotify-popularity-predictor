@@ -1,16 +1,19 @@
-import pandas as pd
+import time
+import os
+
 import numpy as np
+import pandas as pd
+import joblib
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor
+from sklearn.linear_model import Ridge
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import TargetEncoder, StandardScaler
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import Ridge
+from sklearn.preprocessing import StandardScaler, TargetEncoder
+from sklearn.tree import DecisionTreeRegressor
 import xgboost as xgb
 import lightgbm as lgb
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-import joblib
-import os
 
 print("=== BẮT ĐẦU HUẤN LUYỆN VÀ SO SÁNH MÔ HÌNH ===")
 dataset_path = "dataset.csv"
@@ -27,54 +30,51 @@ df.reset_index(drop=True, inplace=True)
 df['duration_min'] = df['duration_ms'] / 60_000
 df['explicit'] = df['explicit'].astype(int)
 
-# Feature Engineering
+# 2. Feature Engineering
 # Key as cyclical feature (musical keys wrap around 0-11)
 df['key_sin'] = np.sin(2 * np.pi * df['key'] / 12)
 df['key_cos'] = np.cos(2 * np.pi * df['key'] / 12)
 
 # Interaction features
-df['dance_x_energy']    = df['danceability'] * df['energy']
-df['valence_x_energy']  = df['valence']      * df['energy']
-df['loud_x_energy']     = df['loudness']     * df['energy']
+df['dance_x_energy']   = df['danceability'] * df['energy']
+df['valence_x_energy'] = df['valence']      * df['energy']
+df['loud_x_energy']    = df['loudness']     * df['energy']
 
-# 2. Feature Selection
+# 3. Feature Selection
 categorical_features = ['track_genre']
 numeric_features = [
     'danceability', 'energy', 'loudness', 'mode',
     'speechiness', 'acousticness', 'instrumentalness',
     'liveness', 'valence', 'tempo', 'time_signature',
     'explicit', 'duration_min',
-    'key_sin', 'key_cos', 
+    'key_sin', 'key_cos',
     'dance_x_energy', 'valence_x_energy', 'loud_x_energy'
 ]
 
 X = df[categorical_features + numeric_features]
 y = df['popularity']
 
-# 3. Train/Test Split
+# 4. Train/Test Split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# 4. Preprocessing for all models
+# 5. Preprocessing for all models
 # TargetEncoder uses cross-fitting to avoid leakage
 preprocessor = ColumnTransformer(
     transformers=[
         ('target_enc', TargetEncoder(target_type='continuous', random_state=42), categorical_features),
-        ('scaler', StandardScaler(), numeric_features) # Scaler is needed for Ridge and KNN
+        ('scaler', StandardScaler(), numeric_features)  # Scaler is needed for Ridge and KNN
     ],
     remainder='passthrough'
 )
 
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import AdaBoostRegressor
-
-# 5. Define Models to Compare
+# 6. Define Models to Compare
 models = {
     'Ridge Regression': Ridge(alpha=10),
-    'Decision Tree': DecisionTreeRegressor(max_depth=12, random_state=42),
-    'AdaBoost': AdaBoostRegressor(n_estimators=50, random_state=42),
-    'Random Forest': RandomForestRegressor(n_estimators=100, max_depth=12, random_state=42, n_jobs=-1),
-    'XGBoost': xgb.XGBRegressor(n_estimators=300, max_depth=6, learning_rate=0.05, random_state=42, n_jobs=-1),
-    'LightGBM': lgb.LGBMRegressor(n_estimators=400, max_depth=8, learning_rate=0.04, random_state=42, n_jobs=-1, verbose=-1)
+    'Decision Tree':    DecisionTreeRegressor(max_depth=12, random_state=42),
+    'AdaBoost':         AdaBoostRegressor(n_estimators=50, random_state=42),
+    'Random Forest':    RandomForestRegressor(n_estimators=100, max_depth=12, random_state=42, n_jobs=-1),
+    'XGBoost':          xgb.XGBRegressor(n_estimators=300, max_depth=6, learning_rate=0.05, random_state=42, n_jobs=-1),
+    'LightGBM':         lgb.LGBMRegressor(n_estimators=400, max_depth=8, learning_rate=0.04, random_state=42, n_jobs=-1, verbose=-1),
 }
 
 print(f"\nĐang tiến hành huấn luyện {len(models)} thuật toán (sẽ mất một lúc)...")
@@ -83,9 +83,9 @@ best_model_name = None
 best_r2 = -float('inf')
 best_pipeline = None
 
-print("-" * 65)
-print(f"{'Mô hình (Algorithm)':<20} | {'RMSE':<10} | {'MAE':<10} | {'R²':<10}")
-print("-" * 65)
+print("-" * 75)
+print(f"{'Mô hình (Algorithm)':<20} | {'RMSE':<10} | {'MAE':<10} | {'R²':<10} | {'Time (s)':<8}")
+print("-" * 75)
 
 for name, model in models.items():
     # Build pipeline
@@ -93,31 +93,40 @@ for name, model in models.items():
         ('preprocessor', preprocessor),
         ('regressor', model)
     ])
-    
-    # Train
+
+    # Train (with timing)
+    t0 = time.time()
     pipeline.fit(X_train, y_train)
-    
+    elapsed = time.time() - t0
+
     # Predict & Evaluate
     preds = pipeline.predict(X_test)
     rmse = np.sqrt(mean_squared_error(y_test, preds))
-    mae = mean_absolute_error(y_test, preds)
-    r2 = r2_score(y_test, preds)
-    
+    mae  = mean_absolute_error(y_test, preds)
+    r2   = r2_score(y_test, preds)
+
     # Print result
-    print(f"{name:<20} | {rmse:<10.3f} | {mae:<10.3f} | {r2:<10.4f}")
-    
-    # Save the best model based on R2
+    print(f"{name:<20} | {rmse:<10.3f} | {mae:<10.3f} | {r2:<10.4f} | {elapsed:<8.1f}")
+
+    # Save the best model based on R²
     if r2 > best_r2:
         best_r2 = r2
         best_model_name = name
         best_pipeline = pipeline
 
-print("-" * 65)
+print("-" * 75)
 print(f"\n🏆 Thuật toán tốt nhất được chọn: **{best_model_name}** với R² = {best_r2:.4f}")
 
-# 6. Save the Best Pipeline
+# 7. Save the Best Pipeline
 joblib.dump(best_pipeline, 'pipeline.pkl')
-unique_genres = sorted(df['track_genre'].dropna().unique().tolist())
-joblib.dump(unique_genres, 'genres.pkl')
 
-print("Đã lưu tự động mô hình tốt nhất vào pipeline.pkl và danh sách thể loại vào genres.pkl!")
+# Save genres list AND the best model name so the API can serve both dynamically
+unique_genres = sorted(df['track_genre'].dropna().unique().tolist())
+metadata = {
+    "genres": unique_genres,
+    "model_name": best_model_name,
+    "r2_score": round(best_r2, 4),
+}
+joblib.dump(metadata, 'genres.pkl')
+
+print("Đã lưu tự động mô hình tốt nhất vào pipeline.pkl và metadata vào genres.pkl!")

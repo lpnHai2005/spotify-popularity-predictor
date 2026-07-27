@@ -4,6 +4,7 @@
 ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-%23F7931E.svg?style=for-the-badge&logo=scikit-learn&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
+![NumPy](https://img.shields.io/badge/numpy-%23013243.svg?style=for-the-badge&logo=numpy&logoColor=white)
 ![HTML/CSS/JS](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
 
 An end-to-end Machine Learning web application designed to predict the popularity of a track on Spotify based **purely on its audio features** (danceability, acousticness, tempo, key, etc.). 
@@ -28,16 +29,16 @@ Bridged the gap between Data Science and Software Engineering by deploying the `
 
 The model was trained on a dataset of over 114,000 Spotify tracks across 114 different genres. Below is the automated benchmarking result on a 20% hold-out test set:
 
-| Algorithm | RMSE | MAE | R² |
-| :--- | :--- | :--- | :--- |
-| Ridge Regression | 16.853 | 12.031 | 0.3200 |
-| Decision Tree | 17.086 | 11.713 | 0.3011 |
-| AdaBoost | 17.388 | 13.387 | 0.2762 |
-| **Random Forest** | **15.997** | **11.261** | **0.3873** |
-| XGBoost | 16.058 | 11.392 | 0.3826 |
-| LightGBM | 16.156 | 11.467 | 0.3751 |
+| Algorithm | RMSE | MAE | R² | Time (s) |
+| :--- | :--- | :--- | :--- | :--- |
+| Ridge Regression | 16.853 | 12.031 | 0.3200 | ~1 |
+| Decision Tree | 17.086 | 11.713 | 0.3011 | ~3 |
+| AdaBoost | 17.388 | 13.387 | 0.2762 | ~8 |
+| **Random Forest** | **15.997** | **11.261** | **0.3873** | ~45 |
+| XGBoost | 16.058 | 11.392 | 0.3826 | ~30 |
+| LightGBM | 16.156 | 11.467 | 0.3751 | ~15 |
 
-> **Note on R² Score**: An R² of ~0.38 is considered highly realistic and robust for this specific domain. Predicting human musical taste based *solely* on raw audio numbers (without artist hype or marketing budgets) is notoriously difficult.
+> **Note on R² Score**: An R² of ~0.38 is considered highly realistic and robust for this specific domain. Predicting human musical taste based *solely* on raw audio numbers (without artist hype or marketing budgets) is notoriously difficult. The training script benchmarks all 6 models and **automatically serializes the winner** — the frontend dynamically reads the model name from the API.
 ## 🛠️ Architecture & Workflow
 
 1.  **`notebooks/spotify_eda_analysis.ipynb`**: The Research Phase. Contains deep Exploratory Data Analysis (EDA) with professional statistical charts, correlation matrices, and density plots to understand the data before modeling. Included with detailed professional insights in Vietnamese.
@@ -54,6 +55,10 @@ Make sure you have Python 3.9+ installed.
 pip install -r requirements.txt
 ```
 
+> **Dataset**: `dataset.csv` from [Kaggle — Spotify Tracks Dataset](https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset).
+
+> **Note**: `dataset.csv` (~20 MB) and `pipeline.pkl` (~24 MB) are excluded from version control via `.gitignore`.
+
 ### 1. Train the Model
 Ensure `dataset.csv` is in the root directory, then run:
 ```bash
@@ -67,7 +72,9 @@ python api.py
 ```
 
 ### 3. Open the App
-Go to your browser and open `http://localhost:8000`.
+Go to your browser and open **[http://localhost:8000](http://localhost:8000)**.
+
+> **Note**: The terminal will show `Uvicorn running on http://0.0.0.0:8000` — this is normal. `0.0.0.0` means the server listens on all network interfaces. Always use `localhost:8000` (or `127.0.0.1:8000`) in your browser.
 
 ---
 *Developed as a demonstration of production-grade Machine Learning Engineering.*

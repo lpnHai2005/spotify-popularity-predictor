@@ -1,76 +1,158 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
-import joblib
-import pandas as pd
 import os
+from contextlib import asynccontextmanager
+
+import joblib
+import numpy as np
+import pandas as pd
 import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
-# Initialize FastAPI app
-app = FastAPI(title="Spotify Popularity Predictor API", version="1.0")
+# ---------------------------------------------------------------------------
+# State — loaded once at startup via lifespan
+# ---------------------------------------------------------------------------
+app_state: dict = {}
 
-# Allow CORS for UI interaction
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Load heavy resources once at startup, clean up on shutdown."""
+    pipeline_path = "pipeline.pkl"
+    genres_path = "genres.pkl"
+
+    if os.path.exists(pipeline_path):
+        app_state["pipeline"] = joblib.load(pipeline_path)
+        print("✅ Model pipeline loaded successfully!")
+    else:
+        app_state["pipeline"] = None
+        print("⚠️  Warning: pipeline.pkl not found. Run train_model.py first.")
+
+    if os.path.exists(genres_path):
+        raw = joblib.load(genres_path)
+        # Support both old format (list) and new format (dict with genres + model_name)
+        if isinstance(raw, dict):
+            app_state["genres"]     = raw.get("genres", [])
+            app_state["model_name"] = raw.get("model_name", "Machine Learning")
+            app_state["r2_score"]   = raw.get("r2_score", None)
+        else:
+            app_state["genres"]     = raw
+            app_state["model_name"] = "Machine Learning"
+            app_state["r2_score"]   = None
+    else:
+        app_state["genres"]     = ["acoustic", "afrobeat", "alt-rock", "alternative", "ambient", "anime"]
+        app_state["model_name"] = "Machine Learning"
+        app_state["r2_score"]   = None
+        print("⚠️  Warning: genres.pkl not found. Using fallback genre list.")
+
+    yield  # Application runs here
+
+    # Cleanup (if needed)
+    app_state.clear()
+
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+app = FastAPI(
+    title="Spotify Popularity Predictor API",
+    version="1.1",
+    lifespan=lifespan,
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],   # Restrict in production via env var
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Load pipeline safely
-PIPELINE_PATH = "pipeline.pkl"
-GENRES_PATH = "genres.pkl"
 
-pipeline = None
-genres_list = []
-
-if os.path.exists(PIPELINE_PATH):
-    pipeline = joblib.load(PIPELINE_PATH)
-    print("Model pipeline loaded successfully!")
-else:
-    print("Warning: Pipeline not found. Run train_model.py first.")
-
-if os.path.exists(GENRES_PATH):
-    genres_list = joblib.load(GENRES_PATH)
-else:
-    genres_list = ["acoustic", "afrobeat", "alt-rock", "alternative", "ambient", "anime"] # fallback
-
-# Define request schema
+# ---------------------------------------------------------------------------
+# Request Schema
+# ---------------------------------------------------------------------------
 class TrackFeatures(BaseModel):
-    track_genre: str
-    danceability: float
-    energy: float
-    key: int
-    loudness: float
-    mode: int
-    speechiness: float
-    acousticness: float
-    instrumentalness: float
-    liveness: float
-    valence: float
-    tempo: float
-    time_signature: int
-    explicit: int
-    duration_min: float
+    track_genre:      str
+    danceability:     float = Field(ge=0.0, le=1.0)
+    energy:           float = Field(ge=0.0, le=1.0)
+    key:              int   = Field(ge=0, le=11)
+    loudness:         float = Field(ge=-60.0, le=0.0)
+    mode:             int   = Field(ge=0, le=1)
+    speechiness:      float = Field(ge=0.0, le=1.0)
+    acousticness:     float = Field(ge=0.0, le=1.0)
+    instrumentalness: float = Field(ge=0.0, le=1.0)
+    liveness:         float = Field(ge=0.0, le=1.0)
+    valence:          float = Field(ge=0.0, le=1.0)
+    tempo:            float = Field(ge=0.0, le=300.0)
+    time_signature:   int   = Field(ge=1, le=7)
+    explicit:         int   = Field(ge=0, le=1)
+    duration_min:     float = Field(ge=0.0)
+
+
+# ---------------------------------------------------------------------------
+# Helper — replicate the same feature engineering as train_model.py
+# ---------------------------------------------------------------------------
+def _apply_feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
+    """Must mirror every transformation done in train_model.py before pipeline.fit()."""
+    # Cyclical key encoding
+    df["key_sin"] = np.sin(2 * np.pi * df["key"] / 12)
+    df["key_cos"] = np.cos(2 * np.pi * df["key"] / 12)
+
+    # Interaction features
+    df["dance_x_energy"]   = df["danceability"] * df["energy"]
+    df["valence_x_energy"] = df["valence"]      * df["energy"]
+    df["loud_x_energy"]    = df["loudness"]     * df["energy"]
+
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+@app.get("/health")
+def health_check():
+    """Quick health check — useful for deployment monitoring."""
+    model_loaded = app_state.get("pipeline") is not None
+    return {
+        "status": "ok" if model_loaded else "degraded",
+        "model_loaded": model_loaded,
+    }
+
+
+@app.get("/metadata")
+def get_metadata():
+    """Return genre list and the name of the best-trained model."""
+    return {
+        "genres":     app_state.get("genres", []),
+        "model_name": app_state.get("model_name", "Machine Learning"),
+        "r2_score":   app_state.get("r2_score"),
+    }
+
 
 @app.post("/predict")
 def predict_popularity(features: TrackFeatures):
+    pipeline = app_state.get("pipeline")
     if pipeline is None:
-        raise HTTPException(status_code=500, detail="Model Pipeline is not loaded. Train model first.")
+        raise HTTPException(
+            status_code=503,
+            detail="Model pipeline is not loaded. Run train_model.py first.",
+        )
 
     try:
-        # Convert request body into DataFrame with a single row
-        # (This is exactly what our pipeline expects as input)
-        input_data = pd.DataFrame([features.model_dump()])
+        # Build a single-row DataFrame from the raw user input
+        input_df = pd.DataFrame([features.model_dump()])
+
+        # Apply the same feature engineering that was done during training
+        input_df = _apply_feature_engineering(input_df)
 
         # Predict
-        prediction = pipeline.predict(input_data)[0]
-        
-        # Ensure prediction is bounded between 0 and 100
-        pred_clamped = max(0.0, min(100.0, float(prediction)))
-        
+        prediction = pipeline.predict(input_df)[0]
+
+        # Clamp output to [0, 100]
+        pred_clamped = float(max(0.0, min(100.0, prediction)))
+
         return {"predicted_popularity": round(pred_clamped, 2)}
 
     except Exception as e:
@@ -78,11 +160,10 @@ def predict_popularity(features: TrackFeatures):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/metadata")
-def get_metadata():
-    return {"genres": genres_list}
 
-# Serve frontend
+# ---------------------------------------------------------------------------
+# Serve Frontend
+# ---------------------------------------------------------------------------
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
 if os.path.exists(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
@@ -95,5 +176,7 @@ else:
     def serve_index():
         return {"message": "Frontend not found. Please create the frontend directory."}
 
+
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
